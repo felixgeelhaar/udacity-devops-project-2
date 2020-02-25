@@ -2,5 +2,13 @@
 	{
 		"ParameterKey": "EnvironmentName",
 		"ParameterValue": "UdacityProject2"
+	},
+	{
+		"ParameterKey": "IamTemplate",
+		"ParameterValue": "ami-0d1cd67c26f5fca19"
+	},
+	{
+		"ParameterKey": "AutoScalingInstanceType",
+		"ParameterValue": "t3.small"
 	}
 ]

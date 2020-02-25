@@ -7,6 +7,25 @@ Parameters:
     Description: An environment name that will be prefixed to resources
     Type: String
 
+  IamTemplate:
+    Description: An template string for the AutoScalingGroup
+    Type: String
+
+  AutoScalingInstanceType:
+    Description: An instance type for the AutoScalingGroup
+    Type: String
+    Default: "t2.small"
+
+  AutoScalingMinSize:
+    Description: An minimum size of instances for the AutoScalingGroup
+    Type: String
+    Default: "3"
+
+  AutoScalingMaxSize:
+    Description: An maximum size of instances for the AutoScalingGroup
+    Type: String
+    Default: "5"
+
 Resources:
   LBSecGroup:
     Type: AWS::EC2::SecurityGroup
@@ -21,10 +40,6 @@ Resources:
           CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
         - IpProtocol: tcp
-          FromPort: 8080
-          ToPort: 8080
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
@@ -37,8 +52,8 @@ Resources:
         Fn::ImportValue: !Sub "${EnvironmentName}-VPCID"
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 8080
-          ToPort: 8080
+          FromPort: 80
+          ToPort: 80
           CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
           FromPort: 22
@@ -50,11 +65,11 @@ Resources:
           ToPort: 65535
           CidrIp: 0.0.0.0/0
 
-  # ProfileWithRolesForOurApp:
-  #   Type: AWS::IAM::InstanceProfile
-  #   Properties:
-  #     Roles:
-  #       - UdacityS3ReadOnlyEC2
+  ProfileWithRolesForOurApp:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - UdacityS3ReadOnlyEC2
 
   WebServerLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
@@ -63,16 +78,17 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash
           apt-get update -y
+          apt-get install unzip awscli -y
           apt-get install apache2 -y
           systemctl start apache2.service
           cd /var/www/html
-          echo "Udacity Demo Web Server Up and Running!" > index.html
-      ImageId: ami-005bdb005fb00e791
-      # IamInstanceProfile: !Ref ProfileWithRolesForOurApp
-      KeyName: private-servers
+          aws s3 cp s3://udacity-demo-1/udacity.zip .
+          unzip -o udacity.zip
+      ImageId: !Ref IamTemplate
+      IamInstanceProfile: !Ref ProfileWithRolesForOurApp
       SecurityGroups:
         - Ref: WebServerSecGroup
-      InstanceType: t2.small
+      InstanceType: !Ref AutoScalingInstanceType
       BlockDeviceMappings:
         - DeviceName: "/dev/sdk"
           Ebs:
@@ -85,8 +101,8 @@ Resources:
         - Fn::ImportValue: !Sub ${EnvironmentName}-PRIV-NETS
       LaunchConfigurationName:
         Ref: WebServerLaunchConfig
-      MinSize: "3"
-      MaxSize: "5"
+      MinSize: !Ref AutoScalingMinSize
+      MaxSize: !Ref AutoScalingMaxSize
       TargetGroupARNs:
         - Ref: WebServerTargetGroup
 
@@ -131,7 +147,7 @@ Resources:
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 8
       HealthyThresholdCount: 2
-      Port: 8080
+      Port: 80
       Protocol: HTTP
       UnhealthyThresholdCount: 3
       VpcId:
@@ -140,4 +156,4 @@ Resources:
 Outputs:
   LoadBalancerDNSEntry:
     Description: DNS Entry for reaching the LoadBalancer
-    Value: !GetAttr WebServerLoadBalancer.DNSName
+    Value: !Sub "http://${WebServerLoadBalancer.DNSName}"
