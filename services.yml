@@ -19,12 +19,12 @@ Parameters:
   AutoScalingMinSize:
     Description: An minimum size of instances for the AutoScalingGroup
     Type: String
-    Default: "3"
+    Default: "4"
 
   AutoScalingMaxSize:
     Description: An maximum size of instances for the AutoScalingGroup
     Type: String
-    Default: "5"
+    Default: "6"
 
 Resources:
   LBSecGroup:
